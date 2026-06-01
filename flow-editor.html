@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flow Editor</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #f5f6f8;
+  color: #1d2129;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  height: 48px;
+}
+.topbar-logo { font-weight: 700; color: #4a7cff; font-size: 15px; }
+.topbar-center { flex: 1; display: flex; align-items: center; justify-content: center; }
+.topbar-right { display: flex; gap: 6px; }
+select, button {
+  font-family: inherit;
+  font-size: 12px;
+}
+select {
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  max-width: 300px;
+}
+.btn {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn:hover { background: #f9fafb; }
+.btn-primary { background: #4a7cff; color: #fff; border-color: #4a7cff; }
+.btn-primary:hover { background: #3b65e0; }
+.btn-danger { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+.btn-danger:hover { background: #fecaca; }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+.main {
+  display: flex;
+  height: calc(100vh - 48px - 180px);
+}
+.sidebar {
+  width: 260px;
+  background: #fff;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+.sidebar-title {
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+.sidebar-hint {
+  padding: 4px 16px 8px;
+  font-size: 10px;
+  color: #8b949e;
+}
+.tool-category {
+  padding: 8px 16px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+.tool-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  margin: 2px 8px;
+  border-radius: 10px;
+  cursor: grab;
+  background: #fff;
+  border: 1px solid transparent;
+  transition: all 0.15s;
+}
+.tool-item:hover {
+  border-color: #4a7cff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.tool-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.tool-icon img { width: 24px; height: 24px; object-fit: contain; }
+.tool-icon-text { font-size: 20px; }
+.tool-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tool-desc { font-size: 10px; color: #6b7280; }
+.canvas-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.canvas-wrapper {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+.canvas-inner { max-width: 1200px; margin: 0 auto; }
+.scenario-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.scenario-subtitle {
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 16px;
+}
+.row-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 16px 0 6px;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.flow-container {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 8px;
+  min-height: 100px;
+  background: rgba(255,255,255,0.6);
+}
+.flow-row {
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+  overflow-x: auto;
+}
+.flow-node { display: flex; flex-shrink: 0; }
+.node-card {
+  width: 260px;
+  min-width: 260px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  text-align: center;
+  transition: all 0.2s;
+  position: relative;
+  user-select: none;
+}
+.node-card.start { border-left: 3px solid #10b981; }
+.node-card.end { border-left: 3px solid #f59e0b; }
+.node-card.empty {
+  border: 2px dashed #c5cee0;
+  background: rgba(255,255,255,0.5);
+  cursor: pointer;
+  min-height: 90px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.node-card.empty:hover {
+  border-color: #4a7cff;
+  background: rgba(74,124,255,0.05);
+}
+.node-card.has-tool { cursor: grab; }
+.node-card.has-tool:hover {
+  box-shadow: 0 4px 16px rgba(74,124,255,0.15);
+  transform: translateY(-2px);
+}
+.node-card.drop-hover {
+  border-color: #4a7cff !important;
+  background: rgba(74,124,255,0.12) !important;
+  transform: scale(1.03);
+}
+.node-card.dragging { opacity: 0.4; transform: scale(0.95); }
+.node-icon { font-size: 24px; margin-bottom: 6px; min-height: 28px; }
+.node-icon img { width: 32px; height: 32px; object-fit: contain; }
+.node-name { font-size: 12px; font-weight: 700; margin-bottom: 2px; }
+.node-desc { font-size: 10px; color: #6b7280; line-height: 1.3; }
+.node-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-top: 6px;
+}
+.badge-orch  { background: #e0ecff; color: #1a56db; }
+.badge-rpa   { background: #e0f2fe; color: #0369a1; }
+.badge-ia    { background: #ede9fe; color: #6d28d9; }
+.badge-data  { background: #d1fae5; color: #047857; }
+.badge-agent { background: #fef3c7; color: #b4530c; }
+.badge-app   { background: #fce7f3; color: #be185d; }
+.badge-erp   { background: #ffedd5; color: #c2410c; }
+.badge-trig  { background: #fee2e2; color: #dc2626; }
+.node-actions {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: none;
+  gap: 2px;
+}
+.node-card.has-tool:hover .node-actions,
+.node-card.empty:hover .node-actions {
+  display: flex;
+}
+.node-action-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+.node-action-btn:hover { background: #fee2e2; color: #dc2626; border-color: #fecaca; }
+.separator {
+  min-width: 120px;
+  width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+.separator-line {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 50%;
+  height: 4px;
+  border-radius: 2px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  z-index: 0;
+}
+.separator.row-trad .separator-line {
+  background: linear-gradient(to right, #c5cee0, #8b949e);
+}
+.separator.row-ia .separator-line {
+  background: linear-gradient(to right, #a8d8ea, #56CCF2);
+}
+.flow-particle {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 50%;
+  height: 4px;
+  transform: translateY(-50%);
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: 2px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.separator.row-trad .flow-particle::after {
+  content: '';
+  position: absolute;
+  left: -30%;
+  top: 0;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(to right, transparent, #4a7cff, transparent);
+  border-radius: 2px;
+  animation: flowParticleSlow 1.8s ease-in-out infinite;
+}
+.separator.row-ia .flow-particle::after {
+  content: '';
+  position: absolute;
+  left: -30%;
+  top: 0;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(to right, transparent, #56CCF2, transparent);
+  border-radius: 2px;
+  animation: flowParticleFast 0.7s ease-in-out infinite;
+}
+@keyframes flowParticleSlow {
+  0% { left: -30%; }
+  100% { left: 100%; }
+}
+@keyframes flowParticleFast {
+  0% { left: -30%; }
+  100% { left: 100%; }
+}
+.sep-add-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #4a7cff;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #4a7cff;
+  transition: all 0.15s;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(74,124,255,0.2);
+}
+.sep-add-btn:hover {
+  border-color: #3b65e0;
+  color: #fff;
+  background: #4a7cff;
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(74,124,255,0.35);
+}
+.console-panel {
+  height: 180px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+.console-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fafafa;
+}
+.console-title { font-size: 11px; font-weight: 600; color: #6b7280; }
+.console-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.console-line { white-space: pre-wrap; word-break: break-all; }
+.console-step { color: #059669; font-weight: 600; }
+.console-arrow { color: #8b949e; font-style: italic; }
+.console-sep { color: #d1d5db; text-align: center; display: block; padding: 2px 0; user-select: none; }
+.console-comment { color: #8b949e; font-style: italic; }
+.btn-center { display: flex; align-items: center; gap: 6px; justify-content: center; }
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 100;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  width: 380px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+}
+.modal h3 { margin: 0 0 16px; font-size: 16px; }
+.modal label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  margin: 8px 0 4px;
+  color: #6b7280;
+}
+.modal input,
+.modal textarea,
+.modal select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.modal textarea { resize: vertical; min-height: 40px; }
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+.legend {
+  display: flex;
+  gap: 16px;
+  padding: 8px 0;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #6b7280;
+}
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-logo">Flow Editor</div>
+  <div class="topbar-center">
+    <select id="scenarioSelect">
+      <option value="ots">OTs - Gesti&#243;n de Servicios</option>
+      <option value="fact">Facturas - Procesamiento</option>
+      <option value="cae">CAE - Cumplimiento</option>
+      <option value="veh">Veh&#237;culos - Mantenimiento</option>
+    </select>
+  </div>
+  <div class="topbar-right">
+    <button class="btn btn-primary" id="btnSimulate">&#9654; Simular</button>
+    <button class="btn btn-danger" id="btnClear">Vaciar</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-title">Herramientas</div>
+    <div class="sidebar-hint">Arrastra al canvas o haz clic para colocar.</div>
+    <div id="toolList"></div>
+  </div>
+  <div class="canvas-area">
+    <div class="canvas-wrapper">
+      <div class="canvas-inner">
+        <div id="scenarioTitle" class="scenario-title">Cargando...</div>
+        <div id="scenarioSubtitle" class="scenario-subtitle"></div>
+
+        <div class="row-label"><span class="dot" style="background:#8B949E"></span> Proceso Tradicional</div>
+        <div class="flow-container"><div class="flow-row row-trad" id="flowRowTrad"></div></div>
+
+        <div class="row-label"><span class="dot" style="background:#56CCF2"></span> Proceso Potenciado por IA</div>
+        <div class="flow-container"><div class="flow-row row-ia" id="flowRowIA"></div></div>
+
+        <div class="legend">
+          <span><span class="legend-dot" style="background:#4a7cff"></span> Clic/Arrastra para colocar</span>
+          <span><span class="legend-dot" style="background:#f59e0b"></span> + insertar hueco</span>
+          <span>X quitar</span>
+        </div>
+      </div>
+    </div>
+    <div class="console-panel">
+      <div class="console-header">
+        <div class="console-title">// Consola de ejecuci&#243;n</div>
+        <button class="btn btn-sm" id="btnClearConsole">Limpiar</button>
+      </div>
+      <div class="console-body" id="consoleBody"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3 id="modalTitle">Configurar</h3>
+    <label>Nombre</label>
+    <input type="text" id="modalName">
+    <label>Descripci&#243;n</label>
+    <textarea id="modalDesc" rows="2"></textarea>
+    <label>Tipo</label>
+    <select id="modalType">
+      <option value="process">Proceso</option>
+      <option value="start">Inicio (Trigger)</option>
+      <option value="end">Fin (Salida)</option>
+    </select>
+    <div class="modal-actions">
+      <button class="btn btn-sm" id="btnModalCancel">Cancelar</button>
+      <button class="btn btn-sm btn-primary" id="btnModalSave">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   TOOL DEFINITIONS
+   ============================================================ */
+var TOOL_DEFS = {
+  'flow': {
+    icon: 'recursos/Power-Platform-icons-scalable/Power Platform/PowerAutomate_scalable.svg',
+    name: 'Power Automate',
+    desc: 'Dispara y enruta el flujo',
+    badge: 'ORQUESTACION', badgeClass: 'badge-orch', type: 'process'
+  },
+  'pad': {
+    icon: 'recursos/Power-Platform-icons-scalable/Power Platform/PowerAutomate_scalable.svg',
+    name: 'Power Automate Desktop',
+    desc: 'Opera portales sin API (RPA)',
+    badge: 'RPA', badgeClass: 'badge-rpa', type: 'process'
+  },
+  'invoice': {
+    icon: 'recursos/Power-Platform-icons-scalable/Power Platform/AIBuilder_scalable.svg',
+    name: 'AI Builder - Invoice',
+    desc: 'Extrae proveedor, importe, lineas e IVA',
+    badge: 'IA', badgeClass: 'badge-ia', type: 'process'
+  },
+  'aibuilder': {
+    icon: 'recursos/Power-Platform-icons-scalable/Power Platform/AIBuilder_scalable.svg',
+    name: 'AI Builder - Document',
+    desc: 'Lee documentos no estructurados',
+    badge: 'IA', badgeClass: 'badge-ia', type: 'process'
+  },
+  'gpt': {
+    icon: 'recursos/Power-Platform-icons-scalable/CopilotStudio_scalable.svg',
+    name: 'AI Builder - GPT prompt',
+    desc: 'Interpreta texto libre',
+    badge: 'IA', badgeClass: 'badge-ia', type: 'process'
+  },
+  'docproc': {
+    icon: 'recursos/Azure_Public_Service_Icons_V23/Azure_Public_Service_Icons/Icons/ai + machine learning/10165-icon-service-Bot-Services.svg',
+    name: 'Document Processor',
+    desc: 'Revisa y valida la extraccion',
+    badge: 'AGENTE', badgeClass: 'badge-agent', type: 'process'
+  },
+  'docautoapp': {
+    icon: 'recursos/2024-microsoft-365-content-icons/Microsoft Blue/48x48 Dark Blue Icon/Edit.svg',
+    name: 'Power Apps - Doc Auto',
+    desc: 'Validacion humana en app',
+    badge: 'APP', badgeClass: 'badge-app', type: 'process'
+  },
+  'syntex': {
+    icon: 'recursos/2024-microsoft-365-content-icons/SharePoint Teal/48x48 SVG Icon/Organization_Dark.svg',
+    name: 'SharePoint + Syntex',
+    desc: 'Clasifica con metadatos',
+    badge: 'DATOS', badgeClass: 'badge-data', type: 'process'
+  },
+  'dataverse': {
+    icon: 'recursos/Power-Platform-icons-scalable/Power Platform/Dataverse_scalable.svg',
+    name: 'Dataverse',
+    desc: 'Dato estructurado y governado',
+    badge: 'DATOS', badgeClass: 'badge-data', type: 'end'
+  },
+  'teams': {
+    icon: 'recursos/2024-microsoft-365-content-icons/Teams Purple/Building People_Teams_Dark.svg',
+    name: 'Teams - Adaptive Card',
+    desc: 'Aprobacion con un clic',
+    badge: 'COMUNICACION', badgeClass: 'badge-orch', type: 'process'
+  },
+  'bc': {
+    icon: 'recursos/Dynamics-365-icons-scalable/Dynamics 365 App Icons/BusinessCentral_scalable.svg',
+    name: 'Business Central',
+    desc: 'ERP - Facturas y gastos',
+    badge: 'ERP', badgeClass: 'badge-erp', type: 'end'
+  },
+  'd365fs': {
+    icon: 'recursos/Dynamics-365-icons-scalable/Dynamics 365 App Icons/FieldService_scalable.svg',
+    name: 'D365 Field Service',
+    desc: 'Gestion de servicios - OTs',
+    badge: 'ERP', badgeClass: 'badge-erp', type: 'end'
+  },
+  'copilot': {
+    icon: 'recursos/Power-Platform-icons-scalable/CopilotStudio_scalable.svg',
+    name: 'Copilot Studio',
+    desc: 'Agente conversacional',
+    badge: 'AGENTE', badgeClass: 'badge-agent', type: 'process'
+  },
+  'email': {
+    icon: 'recursos/2024-microsoft-365-content-icons/Microsoft Blue/48x48 Dark Blue Icon/Mail.svg',
+    name: 'Email entrante',
+    desc: 'Correo con adjunto',
+    badge: 'TRIGGER', badgeClass: 'badge-trig', type: 'start'
+  },
+  'pdf': {
+    icon: 'recursos/2024-microsoft-365-content-icons/Microsoft Blue/48x48 Dark Blue Icon/Document.svg',
+    name: 'PDF factura',
+    desc: 'Documento adjunto',
+    badge: 'TRIGGER', badgeClass: 'badge-trig', type: 'start'
+  },
+  'portal': {
+    icon: 'recursos/2024-microsoft-365-content-icons/Microsoft Blue/48x48 Dark Blue Icon/Globe.svg',
+    name: 'Portal CAE',
+    desc: 'Coordyna, CTAIMA, Achilles...',
+    badge: 'TRIGGER', badgeClass: 'badge-trig', type: 'start'
+  },
+  'form': {
+    icon: 'recursos/2024-microsoft-365-content-icons/Microsoft Blue/48x48 Dark Blue Icon/Edit.svg',
+    name: 'Formulario',
+    desc: 'Power Apps / web',
+    badge: 'TRIGGER', badgeClass: 'badge-trig', type: 'start'
+  }
+};
+
+/* ============================================================
+   SCENARIOS
+   ============================================================ */
+var scenarios = {
+  ots: {
+    name: 'OTs - Gestion de Servicios',
+    trad: [
+      {toolId: 'email'},
+      {toolId: 'flow'},
+      {toolId: 'dataverse'},
+      {toolId: 'd365fs'}
+    ],
+    ia: [
+      {toolId: 'email'},
+      {toolId: 'flow'},
+      {toolId: 'gpt'},
+      {toolId: 'dataverse'},
+      {toolId: 'd365fs'}
+    ]
+  },
+  fact: {
+    name: 'Facturas - Procesamiento',
+    trad: [
+      {toolId: 'pdf'},
+      {toolId: 'flow'},
+      {toolId: 'dataverse'},
+      {toolId: 'bc'}
+    ],
+    ia: [
+      {toolId: 'pdf'},
+      {toolId: 'flow'},
+      {toolId: 'invoice'},
+      {toolId: 'dataverse'},
+      {toolId: 'teams'},
+      {toolId: 'bc'}
+    ]
+  },
+  cae: {
+    name: 'CAE - Cumplimiento',
+    trad: [
+      {toolId: 'portal'},
+      {toolId: 'pad'},
+      {toolId: 'dataverse'}
+    ],
+    ia: [
+      {toolId: 'portal'},
+      {toolId: 'pad'},
+      {toolId: 'aibuilder'},
+      {toolId: 'docproc'},
+      {toolId: 'docautoapp'},
+      {toolId: 'syntex'},
+      {toolId: 'dataverse'}
+    ]
+  },
+  veh: {
+    name: 'Vehiculos - Mantenimiento',
+    trad: [
+      {toolId: 'pdf'},
+      {toolId: 'pad'},
+      {toolId: 'dataverse'},
+      {toolId: 'bc'}
+    ],
+    ia: [
+      {toolId: 'pdf'},
+      {toolId: 'pad'},
+      {toolId: 'gpt'},
+      {toolId: 'dataverse'},
+      {toolId: 'bc'}
+    ]
+  }
+};
+
+/* ============================================================
+   STATE
+   ============================================================ */
+var slotsTrad = [];
+var slotsIA = [];
+var draggedToolId = null;
+var draggedNodeIndex = null;
+var draggedSlotArray = null;
+var modalSlotIndex = null;
+var modalSlotArray = null;
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function hasPathIcon(toolId) {
+  var d = TOOL_DEFS[toolId];
+  return d && d.icon && d.icon.indexOf('recursos/') === 0;
+}
+
+function getToolDefault(toolId) {
+  var d = TOOL_DEFS[toolId];
+  return {
+    toolId: toolId,
+    config: {
+      name: d ? d.name : toolId,
+      desc: d ? d.desc : '',
+      badge: d ? d.badge : 'CUSTOM',
+      badgeClass: d ? d.badgeClass : 'badge-data',
+      type: d ? d.type : 'process'
+    }
+  };
+}
+
+function ensureSlotsLength(arr, minLen) {
+  while (arr.length < minLen) arr.push(null);
+}
+
+function cloneDeep(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+var toolCategories = [
+  { name: 'Trigger', ids: ['email','pdf','portal','form'] },
+  { name: 'Orquestacion / RPA', ids: ['flow','pad'] },
+  { name: 'Inteligencia (IA)', ids: ['invoice','aibuilder','gpt','docproc'] },
+  { name: 'Apps / Documental', ids: ['docautoapp','syntex'] },
+  { name: 'Dato / ERP', ids: ['dataverse','bc','d365fs'] },
+  { name: 'Comunicacion / Agente', ids: ['teams','copilot'] }
+];
+
+function buildSidebar() {
+  var container = document.getElementById('toolList');
+  for (var ci = 0; ci < toolCategories.length; ci++) {
+    var cat = toolCategories[ci];
+    var catDiv = document.createElement('div');
+    catDiv.className = 'tool-category';
+    catDiv.textContent = cat.name;
+    container.appendChild(catDiv);
+    for (var ti = 0; ti < cat.ids.length; ti++) {
+      (function(toolId) {
+        var def = TOOL_DEFS[toolId];
+        var item = document.createElement('div');
+        item.className = 'tool-item';
+        item.setAttribute('data-tool', toolId);
+
+        // Icon
+        var iconDiv = document.createElement('div');
+        iconDiv.className = 'tool-icon';
+        if (hasPathIcon(toolId)) {
+          var img = document.createElement('img');
+          img.src = def.icon;
+          iconDiv.appendChild(img);
+        } else {
+          iconDiv.className += ' tool-icon-text';
+          iconDiv.textContent = def.icon;
+        }
+
+        // Info
+        var infoDiv = document.createElement('div');
+        infoDiv.style.flex = '1';
+        infoDiv.style.minWidth = '0';
+        var nameEl = document.createElement('div');
+        nameEl.className = 'tool-name';
+        nameEl.textContent = def.name;
+        infoDiv.appendChild(nameEl);
+        var descEl = document.createElement('div');
+        descEl.className = 'tool-desc';
+        descEl.textContent = def.desc;
+        infoDiv.appendChild(descEl);
+
+        item.appendChild(iconDiv);
+        item.appendChild(infoDiv);
+
+        // Click to place in Trad row
+        item.addEventListener('click', function() {
+          var targetToolId = this.getAttribute('data-tool');
+          placeInSlots(slotsTrad, targetToolId);
+          renderAll();
+        });
+
+        // Drag
+        item.setAttribute('draggable', 'true');
+        item.addEventListener('dragstart', function(e) {
+          draggedToolId = this.getAttribute('data-tool');
+          draggedNodeIndex = null;
+          draggedSlotArray = null;
+          e.dataTransfer.effectAllowed = 'copy';
+          e.dataTransfer.setData('text/plain', draggedToolId);
+          e.stopPropagation();
+        });
+
+        container.appendChild(item);
+      })(cat.ids[ti]);
+    }
+  }
+}
+
+function placeInSlots(slotsArray, toolId) {
+  for (var i = 0; i < slotsArray.length; i++) {
+    if (slotsArray[i] === null) {
+      slotsArray[i] = getToolDefault(toolId);
+      return;
+    }
+  }
+  slotsArray.push(getToolDefault(toolId));
+}
+
+/* ============================================================
+   RENDER FLOW
+   ============================================================ */
+function renderFlowRow(slots, rowId) {
+  var row = document.getElementById(rowId);
+  row.innerHTML = '';
+
+  for (var i = 0; i < slots.length; i++) {
+    var slot = slots[i];
+    var idx = i;
+
+    // Node
+    var nodeDiv = document.createElement('div');
+    nodeDiv.className = 'flow-node';
+
+    var card = document.createElement('div');
+    card.className = 'node-card';
+    card.setAttribute('data-index', String(idx));
+
+    if (slot === null) {
+      // EMPTY slot
+      card.classList.add('empty');
+
+      // Remove button
+      var actionsDiv = document.createElement('div');
+      actionsDiv.className = 'node-actions';
+      var rmBtn = document.createElement('button');
+      rmBtn.className = 'node-action-btn remove';
+      rmBtn.textContent = '\u2715';
+      rmBtn.title = 'Quitar hueco';
+      (function() {
+        var si = idx;
+        var ss = slots;
+        rmBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          ss.splice(si, 1);
+          renderAll();
+        });
+      })();
+      actionsDiv.appendChild(rmBtn);
+      card.appendChild(actionsDiv);
+
+      var plusIcon = document.createElement('div');
+      plusIcon.className = 'node-icon';
+      plusIcon.textContent = '+';
+      plusIcon.style.color = '#c5cee0';
+      card.appendChild(plusIcon);
+
+      var emptyName = document.createElement('div');
+      emptyName.className = 'node-name';
+      emptyName.textContent = 'Hueco vacio';
+      card.appendChild(emptyName);
+
+      var emptyDesc = document.createElement('div');
+      emptyDesc.className = 'node-desc';
+      emptyDesc.textContent = 'Doble clic para editar o arrastra';
+      card.appendChild(emptyDesc);
+
+      // Double click to open modal
+      (function() {
+        var mi = idx;
+        var sa = slots;
+        card.addEventListener('dblclick', function() {
+          openModal(mi, sa);
+        });
+      })();
+
+      // Drag over
+      card.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        card.classList.add('drop-hover');
+      });
+      card.addEventListener('dragleave', function() {
+        card.classList.remove('drop-hover');
+      });
+
+      // Drop
+      (function() {
+        var ti = idx;
+        var ts = slots;
+        card.addEventListener('drop', function(e) {
+          e.preventDefault();
+          card.classList.remove('drop-hover');
+          var data = e.dataTransfer.getData('text/plain');
+          if (!data) return;
+          if (TOOL_DEFS[data]) {
+            ts[ti] = getToolDefault(data);
+          } else if (!isNaN(parseInt(data))) {
+            var si = parseInt(data);
+            if (si !== ti && ts[si] !== null) {
+              var tmp = ts[ti];
+              ts[ti] = ts[si];
+              ts[si] = tmp;
+            }
+          }
+          draggedToolId = null;
+          draggedNodeIndex = null;
+          draggedSlotArray = null;
+          renderAll();
+        });
+      })();
+
+    } else {
+      // HAS TOOL
+      var def = TOOL_DEFS[slot.toolId] || {};
+      var cfg = slot.config || {};
+      var nType = cfg.type || def.type || 'process';
+
+      card.classList.add('has-tool');
+      if (nType === 'start') card.classList.add('start');
+      if (nType === 'end') card.classList.add('end');
+
+      // Remove button
+      var actionsDiv = document.createElement('div');
+      actionsDiv.className = 'node-actions';
+      var rmBtn = document.createElement('button');
+      rmBtn.className = 'node-action-btn remove';
+      rmBtn.textContent = '\u2715';
+      rmBtn.title = 'Quitar';
+      (function() {
+        var si = idx;
+        var ss = slots;
+        rmBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          ss[si] = null;
+          renderAll();
+        });
+      })();
+      actionsDiv.appendChild(rmBtn);
+      card.appendChild(actionsDiv);
+
+      // Icon
+      var iconDiv = document.createElement('div');
+      iconDiv.className = 'node-icon';
+      if (hasPathIcon(slot.toolId)) {
+        var img = document.createElement('img');
+        img.src = def.icon;
+        iconDiv.appendChild(img);
+      } else {
+        iconDiv.textContent = def.icon || '\u2699';
+      }
+      card.appendChild(iconDiv);
+
+      // Name
+      var nameEl = document.createElement('div');
+      nameEl.className = 'node-name';
+      nameEl.textContent = cfg.name || def.name || slot.toolId;
+      card.appendChild(nameEl);
+
+      // Desc
+      var descEl = document.createElement('div');
+      descEl.className = 'node-desc';
+      descEl.textContent = cfg.desc || def.desc || '';
+      card.appendChild(descEl);
+
+      // Badge
+      var badgeEl = document.createElement('span');
+      badgeEl.className = 'node-badge ' + (cfg.badgeClass || def.badgeClass || 'badge-data');
+      badgeEl.textContent = cfg.badge || def.badge || '';
+      card.appendChild(badgeEl);
+
+      // Double click to edit
+      (function() {
+        var mi = idx;
+        var sa = slots;
+        card.addEventListener('dblclick', function() {
+          openModal(mi, sa);
+        });
+      })();
+
+      // Drag over
+      card.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        card.classList.add('drop-hover');
+      });
+      card.addEventListener('dragleave', function() {
+        card.classList.remove('drop-hover');
+      });
+
+      // Drop (swap or replace)
+      (function() {
+        var ti = idx;
+        var ts = slots;
+        card.addEventListener('drop', function(e) {
+          e.preventDefault();
+          card.classList.remove('drop-hover');
+          var data = e.dataTransfer.getData('text/plain');
+          if (!data) return;
+          if (TOOL_DEFS[data]) {
+            ts[ti] = getToolDefault(data);
+          } else if (!isNaN(parseInt(data))) {
+            var si = parseInt(data);
+            if (si !== ti) {
+              var tmp = ts[ti];
+              ts[ti] = ts[si];
+              ts[si] = tmp;
+            }
+          }
+          draggedToolId = null;
+          draggedNodeIndex = null;
+          draggedSlotArray = null;
+          renderAll();
+        });
+      })();
+
+      // Drag start (reorder)
+      (function() {
+        var di = idx;
+        var ds = slots;
+        card.addEventListener('dragstart', function(e) {
+          draggedToolId = null;
+          draggedNodeIndex = di;
+          draggedSlotArray = ds;
+          card.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', String(di));
+          e.stopPropagation();
+        });
+        card.addEventListener('dragend', function() {
+          card.classList.remove('dragging');
+          draggedToolId = null;
+          draggedNodeIndex = null;
+          draggedSlotArray = null;
+        });
+      })();
+    }
+
+    nodeDiv.appendChild(card);
+    row.appendChild(nodeDiv);
+
+    // Separator after each node
+    if (i < slots.length - 1) {
+      (function() {
+        var nextIdx = i + 1;
+        var sep = document.createElement('div');
+        sep.className = 'separator';
+
+        // Add row class for animation
+        if (rowId === 'flowRowTrad') {
+          sep.classList.add('row-trad');
+        } else {
+          sep.classList.add('row-ia');
+        }
+
+        // Background connecting line
+        var lineDiv = document.createElement('div');
+        lineDiv.className = 'separator-line';
+        sep.appendChild(lineDiv);
+
+        // Flow particle
+        var particleDiv = document.createElement('div');
+        particleDiv.className = 'flow-particle';
+        sep.appendChild(particleDiv);
+
+        var addBtn = document.createElement('button');
+        addBtn.className = 'sep-add-btn';
+        addBtn.textContent = '+';
+        addBtn.title = 'Insertar aqui';
+
+        (function() {
+          var insIdx = nextIdx;
+          var insSlots = slots;
+          addBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            insSlots.splice(insIdx, 0, null);
+            renderAll();
+          });
+        })();
+
+        // Drop on separator
+        addBtn.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'copy';
+        });
+
+        (function() {
+          var insIdx = nextIdx;
+          var insSlots = slots;
+          addBtn.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var data = e.dataTransfer.getData('text/plain');
+            if (!data) return;
+            if (TOOL_DEFS[data]) {
+              insSlots.splice(insIdx, 0, getToolDefault(data));
+            }
+            draggedToolId = null;
+            draggedNodeIndex = null;
+            draggedSlotArray = null;
+            renderAll();
+          });
+        })();
+
+        sep.appendChild(addBtn);
+        row.appendChild(sep);
+      })();
+    }
+  }
+}
+
+function renderAll() {
+  var minTrad = slotsTrad.filter(Boolean).length;
+  var minIA = slotsIA.filter(Boolean).length;
+  var minLen = Math.max(8, minTrad, minIA);
+  ensureSlotsLength(slotsTrad, minLen);
+  ensureSlotsLength(slotsIA, minLen);
+  renderFlowRow(slotsTrad, 'flowRowTrad');
+  renderFlowRow(slotsIA, 'flowRowIA');
+}
+
+/* ============================================================
+   SCENARIO SELECTOR
+   ============================================================ */
+function loadScenario(key) {
+  var sc = scenarios[key] || scenarios['ots'];
+  slotsTrad = cloneDeep(sc.trad);
+  slotsIA = cloneDeep(sc.ia);
+  document.getElementById('scenarioTitle').textContent = sc.name;
+  document.getElementById('scenarioSubtitle').textContent = 'Tradicional vs Potenciado por IA';
+  renderAll();
+  clearConsole();
+}
+
+document.getElementById('scenarioSelect').addEventListener('change', function() {
+  loadScenario(this.value);
+});
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+function openModal(index, slotArray) {
+  modalSlotIndex = index;
+  modalSlotArray = slotArray;
+  var slot = slotArray[index];
+  var def = slot ? (TOOL_DEFS[slot.toolId] || {}) : {};
+  var cfg = slot ? (slot.config || {}) : {};
+
+  document.getElementById('modalTitle').textContent =
+    slot ? ('Editar: ' + (cfg.name || def.name || slot.toolId)) : 'Nuevo hueco';
+  document.getElementById('modalName').value = cfg.name || def.name || '';
+  document.getElementById('modalDesc').value = cfg.desc || def.desc || '';
+  document.getElementById('modalType').value = cfg.type || def.type || 'process';
+  document.getElementById('editModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('editModal').classList.remove('open');
+  modalSlotIndex = null;
+  modalSlotArray = null;
+}
+
+function saveModal() {
+  if (modalSlotIndex === null || modalSlotArray === null) return;
+  var slot = modalSlotArray[modalSlotIndex];
+  var nameVal = document.getElementById('modalName').value.trim();
+  var descVal = document.getElementById('modalDesc').value.trim();
+  var typeVal = document.getElementById('modalType').value;
+
+  if (slot) {
+    // Edit existing
+    slot.config = slot.config || {};
+    if (nameVal) slot.config.name = nameVal;
+    if (descVal) slot.config.desc = descVal;
+    slot.config.type = typeVal;
+  } else {
+    // Create new
+    if (nameVal) {
+      modalSlotArray[modalSlotIndex] = {
+        toolId: 'custom',
+        config: {
+          name: nameVal,
+          desc: descVal,
+          badge: 'PERSONALIZADO',
+          badgeClass: 'badge-data',
+          type: typeVal
+        }
+      };
+    }
+  }
+  closeModal();
+  renderAll();
+}
+
+document.getElementById('btnModalCancel').addEventListener('click', closeModal);
+document.getElementById('btnModalSave').addEventListener('click', saveModal);
+document.getElementById('editModal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+/* ============================================================
+   CLEAR
+   ============================================================ */
+document.getElementById('btnClear').addEventListener('click', function() {
+  if (!confirm('?Quieres vaciar todo el flujo')) return;
+  slotsTrad = [];
+  slotsIA = [];
+  renderAll();
+  clearConsole();
+});
+
+/* ============================================================
+   CONSOLE
+   ============================================================ */
+function clearConsole() {
+  document.getElementById('consoleBody').innerHTML = '';
+}
+document.getElementById('btnClearConsole').addEventListener('click', clearConsole);
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function addConsoleLine(html) {
+  var div = document.createElement('div');
+  div.className = 'console-line';
+  div.innerHTML = html;
+  document.getElementById('consoleBody').appendChild(div);
+}
+
+/* ============================================================
+   SIMULATION
+   ============================================================ */
+function getToolLog(toolId) {
+  var logs = {
+    email: 'Email parseado. Campos y adjuntos extraidos.',
+    pdf: 'PDF analizado. Texto extraido.',
+    portal: 'Documento descargado del portal.',
+    form: 'Formulario completado.',
+    flow: 'Flujo orquestado y enrutado.',
+    pad: 'RPA ejecutado. Datos extraidos del portal.',
+    invoice: 'Factura analizada. Proveedor, importe y lineas extraidos.',
+    aibuilder: 'Documento procesado. Campos y fechas detectados.',
+    gpt: 'GPT interpreto texto libre. Tipo, ubicacion y urgencia detectados.',
+    docproc: 'Documento revisado y validado por agente.',
+    docautoapp: 'Validacion humana completada.',
+    syntex: 'Clasificacion con metadatos realizada.',
+    dataverse: 'Dato guardado en Dataverse con gobernanza.',
+    teams: 'Notificacion publicada en Teams.',
+    bc: 'Factura de compra creada en Business Central.',
+    d365fs: 'Orden de trabajo creada y asignada en D365 FS.',
+    copilot: 'Agente detecto intencion y ejecuto flujo.'
+  };
+  return logs[toolId] || 'Procesado.';
+}
+
+function transformData(data, toolId) {
+  switch(toolId) {
+    case 'email':
+      return Object.assign({}, data, {email:'usuario@empresa.com', adjuntos:['factura.pdf'], prioridad:'alta'});
+    case 'pdf':
+      return Object.assign({}, data, {pdf:{tipo:'factura', contenido:'PDF sin estructurar'}});
+    case 'portal':
+      return Object.assign({}, data, {portal:'CAE', documento:'descargado'});
+    case 'form':
+      return Object.assign({}, data, {formulario:{completado:true}});
+    case 'flow':
+      return Object.assign({}, data, {workflow:'wf-active', enrutado:true});
+    case 'pad':
+      return Object.assign({}, data, {rpa:{portal:'CAE', datos:'extraidos'}});
+    case 'invoice':
+      return Object.assign({}, data, {factura:{proveedor:'Garcia SL', importe:1250, lineas:5, iva:250}});
+    case 'aibuilder':
+      return Object.assign({}, data, {doc:{campos:{descripcion:'averia', fecha:'2024-01-15'}}});
+    case 'gpt':
+      return Object.assign({}, data, {gpt:{tipo:'averia', ubicacion:'Madrid', urgencia:'alta'}});
+    case 'docproc':
+      return Object.assign({}, data, {doc:{validado:true, revisado:'agente'}});
+    case 'docautoapp':
+      return Object.assign({}, data, {doc:{validado:true, validadoPor:'usuario'}});
+    case 'syntex':
+      return Object.assign({}, data, {syntex:{metadatos:{categoria:'compliance', fechaArch:'2024-01-15'}}});
+    case 'dataverse':
+      return Object.assign({}, data, {dataverse:{registro:'DOC-'+Math.random().toString(36).substr(2,6).toUpperCase(), governado:true}});
+    case 'teams':
+      return Object.assign({}, data, {teams:{canal:'#compliance', enviado:true}});
+    case 'bc':
+      return Object.assign({}, data, {bc:{facturaCompra:{numero:'FC-2024-001', estado:'creada'}}});
+    case 'd365fs':
+      return Object.assign({}, data, {d365fs:{ot:{numero:'OT-2024-001', tecnico:'Juan Perez', estado:'asignada'}}});
+    case 'copilot':
+      return Object.assign({}, data, {agente:{intencion:'crear_ot', confianza:0.97}});
+    default:
+      return Object.assign({}, data, {custom:true});
+  }
+}
+
+function simulateFlow() {
+  clearConsole();
+  var allSlots = [];
+  var maxLen = Math.max(slotsTrad.length, slotsIA.length);
+  for (var i = 0; i < maxLen; i++) {
+    if (slotsTrad[i]) allSlots.push({slot: slotsTrad[i], row: 'Tradicional'});
+    if (slotsIA[i]) allSlots.push({slot: slotsIA[i], row: 'IA'});
+  }
+  if (allSlots.length === 0) {
+    addConsoleLine('<span class="console-comment">No hay herramientas en ningun flujo.</span>');
+    return;
+  }
+  addConsoleLine('<span class="console-sep">========================</span>');
+  addConsoleLine('<span class="console-comment">// Simulacion iniciada</span>');
+  addConsoleLine('<span class="console-sep">========================</span>');
+  addConsoleLine('');
+
+  var data = {};
+  for (var j = 0; j < allSlots.length; j++) {
+    (function(idx) {
+      setTimeout(function() {
+        var entry = allSlots[idx];
+        addConsoleLine('<span class="console-sep">────────────</span>');
+        addConsoleLine('<span class="console-step">[' + entry.row + ']</span> Paso ' + (idx+1) + ': ' + (entry.slot.config ? entry.slot.config.name : entry.slot.toolId));
+        data = transformData(data, entry.slot.toolId);
+        addConsoleLine('<span class="console-arrow">-></span> ' + getToolLog(entry.slot.toolId));
+        addConsoleLine('<span class="console-step">Data:</span> ' + escapeHtml(JSON.stringify(data)));
+        if (idx === allSlots.length - 1) {
+          addConsoleLine('');
+          addConsoleLine('<span class="console-sep">========================</span>');
+          addConsoleLine('<span class="console-comment">// Completado</span>');
+          addConsoleLine('<span class="console-sep">========================</span>');
+        }
+      }, idx * 500);
+    })(j);
+  }
+}
+
+document.getElementById('btnSimulate').addEventListener('click', simulateFlow);
+
+/* ============================================================
+   KEYBOARD
+   ============================================================ */
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeModal();
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+(function init() {
+  buildSidebar();
+  document.getElementById('scenarioSelect').value = 'ots';
+  loadScenario('ots');
+})();
+</script>
+</body>
+</html>
